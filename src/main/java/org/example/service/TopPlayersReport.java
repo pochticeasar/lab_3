@@ -25,7 +25,7 @@ public class TopPlayersReport {
                 .withColumn("rank", row_number().over(byYear))
                 .filter(col("rank").leq(topN))
                 .orderBy("year", "rank")
-                .select("year", "rank", "name", "salary", "efficiency", "costPerEfficiency")
+                .select("year", "rank", "name", "age", "teams", "salary", "efficiency", "costPerEfficiency")
                 .as(Encoders.bean(TopPlayer.class));
     }
 

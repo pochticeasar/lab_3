@@ -9,6 +9,8 @@ import static org.apache.spark.sql.functions.*;
 
 public class DataLoader {
 
+    private static final String BIRTH_DATE_FORMAT = "MMMM d, yyyy";
+
     private final SparkSession spark;
     private final AppConfig config;
 
@@ -19,7 +21,10 @@ public class DataLoader {
 
     public Dataset<Row> players() {
         return readCsv(config.playersPath())
-                .select(col("_id").as("playerId"), trim(col("name")).as("name"));
+                .select(
+                        col("_id").as("playerId"),
+                        trim(col("name")).as("name"),
+                        to_date(col("birthDate"), BIRTH_DATE_FORMAT).as("birthDate"));
     }
 
     public Dataset<Row> salaries() {
@@ -27,6 +32,7 @@ public class DataLoader {
                 .select(
                         col("player_id").as("playerId"),
                         col("season_end").cast("int").as("year"),
+                        col("team").as("teamName"),
                         col("salary").cast("long").as("salary"));
     }
 
@@ -36,6 +42,7 @@ public class DataLoader {
                 .select(
                         col("Year").cast("int").as("year"),
                         trim(col("Player")).as("name"),
+                        col("Age").cast("int").as("age"),
                         col("Tm").as("team"),
                         col("PTS").cast("double").as("pts"),
                         col("TRB").cast("double").as("trb"),
