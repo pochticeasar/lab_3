@@ -7,7 +7,7 @@ services:
       - "7077:7077"
       - "8080:8080"
     volumes:
-      - ./build/libs:/opt/spark-apps
+      - ./apps:/opt/spark-apps
       - ./data:/opt/spark-data:ro
       - ./output:/opt/spark-output
     networks:
@@ -25,7 +25,7 @@ services:
     ports:
       - "8081:8081"
     volumes:
-      - ./build/libs:/opt/spark-apps
+      - ./apps:/opt/spark-apps
       - ./data:/opt/spark-data:ro
       - ./output:/opt/spark-output
     networks:

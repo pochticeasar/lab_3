@@ -43,4 +43,5 @@ bin/
 .DS_Store
 ### Spark output ###
 output/
+apps/
 spark-warehouse/

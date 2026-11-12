@@ -59,6 +59,7 @@ tasks.shadowJar {
     archiveBaseName = "nba-cost-efficiency"
     archiveClassifier = ""
     archiveVersion = ""
+    destinationDirectory = layout.projectDirectory.dir("apps")
 }
 
 tasks.build {

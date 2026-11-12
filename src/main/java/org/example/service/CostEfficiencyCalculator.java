@@ -10,16 +10,39 @@ import static org.apache.spark.sql.functions.*;
 
 public class CostEfficiencyCalculator {
 
-    private static final String TOTAL_TEAM = "TOT";
-    private static final String[] JOIN_KEYS = {"year", "name", "age", "team"};
+    private static final String[] PLAYER_KEYS = {"year", "name", "age", "team"};
 
     public Dataset<PlayerCostEfficiency> calculate(Dataset<Row> players,
                                                    Dataset<Row> salaries,
                                                    Dataset<Row> stats) {
-        Dataset<Row> perTeam = salaryByTeam(salaries, players)
-                .join(statsByTeam(stats), JOIN_KEYS);
+        Dataset<Row> playerTeamSeasons = playerTeamSeasons(salaries, players);
+        Dataset<Row> statsWithPlayer = attachPlayer(stats, playerTeamSeasons);
+        return seasonResults(statsWithPlayer);
+    }
 
-        return perTeam
+    Dataset<Row> playerTeamSeasons(Dataset<Row> salaries, Dataset<Row> players) {
+        return salaries
+                .groupBy("playerId", "year", "teamName")
+                .agg(sum("salary").as("salary"))
+                .join(players, "playerId")
+                .withColumn("age", ageAtSeason(col("birthDate"), col("year")))
+                .withColumn("team", TeamAbbreviations.abbreviation(col("teamName"), col("year")))
+                .select("playerId", "year", "name", "age", "team", "salary");
+    }
+
+    Dataset<Row> attachPlayer(Dataset<Row> stats, Dataset<Row> playerTeamSeasons) {
+        return stats
+                .join(playerTeamSeasons, PLAYER_KEYS)
+                .select(
+                        col("playerId"), col("name"), col("year"), col("age"), col("team"),
+                        col("salary"),
+                        coalesce(col("pts"), lit(0)).as("pts"),
+                        coalesce(col("trb"), lit(0)).as("trb"),
+                        coalesce(col("ast"), lit(0)).as("ast"));
+    }
+
+    Dataset<PlayerCostEfficiency> seasonResults(Dataset<Row> statsWithPlayer) {
+        return statsWithPlayer
                 .groupBy("playerId", "name", "year", "age")
                 .agg(
                         concat_ws(", ", array_sort(collect_list("team"))).as("teams"),
@@ -33,26 +56,6 @@ public class CostEfficiencyCalculator {
                 .select("playerId", "name", "year", "age", "teams", "salary", "pts", "trb", "ast",
                         "efficiency", "costPerEfficiency")
                 .as(Encoders.bean(PlayerCostEfficiency.class));
-    }
-
-    Dataset<Row> salaryByTeam(Dataset<Row> salaries, Dataset<Row> players) {
-        return salaries
-                .groupBy("playerId", "year", "teamName")
-                .agg(sum("salary").as("salary"))
-                .join(players, "playerId")
-                .withColumn("age", ageAtSeason(col("birthDate"), col("year")))
-                .withColumn("team", TeamAbbreviations.abbreviation(col("teamName"), col("year")))
-                .select("playerId", "year", "name", "age", "team", "salary");
-    }
-
-    Dataset<Row> statsByTeam(Dataset<Row> stats) {
-        return stats
-                .filter(col("team").notEqual(TOTAL_TEAM))
-                .select(
-                        col("year"), col("name"), col("age"), col("team"),
-                        coalesce(col("pts"), lit(0)).as("pts"),
-                        coalesce(col("trb"), lit(0)).as("trb"),
-                        coalesce(col("ast"), lit(0)).as("ast"));
     }
 
     static Column ageAtSeason(Column birthDate, Column seasonEndYear) {

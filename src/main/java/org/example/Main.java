@@ -34,9 +34,14 @@ public class Main {
             ParquetRepository repository = new ParquetRepository(spark, config.outputPath());
             repository.save(result);
 
-            Dataset<PlayerCostEfficiency> fromParquet = repository.load();
+            Dataset<PlayerCostEfficiency> fromParquet = repository.load(config.years());
             System.out.println("Схема прочитанного parquet (year восстановлен из имён каталогов year=...):");
             fromParquet.printSchema();
+            if (!config.years().isEmpty()) {
+                System.out.println("Читаются только партиции: " + config.years().stream()
+                        .map(year -> "year=" + year)
+                        .toList());
+            }
 
             TopPlayersReport report = new TopPlayersReport(config.topN());
             Dataset<TopPlayer> top = report.build(fromParquet);

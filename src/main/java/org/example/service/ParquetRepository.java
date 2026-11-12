@@ -2,9 +2,12 @@ package org.example.service;
 
 import org.apache.spark.sql.Dataset;
 import org.apache.spark.sql.Encoders;
+import org.apache.spark.sql.Row;
 import org.apache.spark.sql.SaveMode;
 import org.apache.spark.sql.SparkSession;
 import org.example.model.PlayerCostEfficiency;
+
+import java.util.List;
 
 import static org.apache.spark.sql.functions.col;
 
@@ -28,9 +31,11 @@ public class ParquetRepository {
                 .parquet(path);
     }
 
-    public Dataset<PlayerCostEfficiency> load() {
-        return spark.read()
-                .parquet(path)
-                .as(Encoders.bean(PlayerCostEfficiency.class));
+    public Dataset<PlayerCostEfficiency> load(List<Integer> years) {
+        Dataset<Row> data = spark.read().parquet(path);
+        if (!years.isEmpty()) {
+            data = data.filter(col(PARTITION_COLUMN).isin(years.toArray()));
+        }
+        return data.as(Encoders.bean(PlayerCostEfficiency.class));
     }
 }
