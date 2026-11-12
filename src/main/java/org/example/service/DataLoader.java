@@ -32,9 +32,10 @@ public class DataLoader {
 
     public Dataset<Row> seasonStats() {
         return readCsv(config.statsPath())
+                .filter(not(col("Player").endsWith("*")))
                 .select(
                         col("Year").cast("int").as("year"),
-                        trim(regexp_replace(col("Player"), "\\*$", "")).as("name"),
+                        trim(col("Player")).as("name"),
                         col("Tm").as("team"),
                         col("PTS").cast("double").as("pts"),
                         col("TRB").cast("double").as("trb"),
