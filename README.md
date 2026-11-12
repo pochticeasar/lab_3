@@ -21,27 +21,90 @@
 
 ## Стек
 
-- Java 21 (через Gradle toolchain)
-- Apache Spark 4.2.0 (`spark-sql_2.13`), локальный режим `local[*]`
-- Gradle 9.6
+- Java 25 (через Gradle toolchain)
+- Apache Spark 4.2.0 (`spark-sql_2.13`)
+- Gradle 9.6 + плагин Shadow (сборка jar для `spark-submit`)
+- Docker Compose: кластер Spark Standalone (master + worker) на образе
+  `spark:4.2.0-scala2.13-java25-ubuntu`
 
 ## Запуск
 
-Исходные CSV лежат в каталоге `data/`.
+Исходные CSV лежат в каталоге `data/`. Программа принимает два необязательных аргумента:
+каталог с CSV (по умолчанию `data`) и каталог для результата (по умолчанию `output`).
+
+### В кластере Spark (Docker Compose)
+
+1. Собрать jar. Spark подключён как `compileOnly`, потому что в кластере он уже есть:
+
+   ```bash
+   ./gradlew clean build
+   ```
+
+   Получится `build/libs/nba-cost-efficiency.jar`.
+
+2. Поднять кластер. Каталог `output` должен быть доступен на запись пользователю
+   `spark` внутри контейнера:
+
+   ```bash
+   mkdir -p output && chmod 777 output
+   docker compose up -d
+   ```
+
+   Веб-интерфейсы: master — http://localhost:8080, worker — http://localhost:8081.
+
+3. Отправить задачу в кластер:
+
+   ```bash
+   docker compose exec spark-master /opt/spark/bin/spark-submit \
+     --class org.example.Main \
+     --master spark://spark-master:7077 \
+     --deploy-mode client \
+     /opt/spark-apps/nba-cost-efficiency.jar /opt/spark-data /opt/spark-output
+   ```
+
+Каталоги, которые монтируются в оба контейнера:
+
+| На хосте | В контейнере | Назначение |
+|---|---|---|
+| `build/libs` | `/opt/spark-apps` | jar приложения |
+| `data` | `/opt/spark-data` (только чтение) | исходные CSV |
+| `output` | `/opt/spark-output` | результат в Parquet |
+
+Файлы результата создаёт пользователь контейнера (uid 185), поэтому с хоста их не удалить.
+Перед повторным запуском (в том числе локальным) каталог чистится через контейнер:
+
+```bash
+docker compose exec spark-master sh -c 'rm -rf /opt/spark-output/*'
+```
+
+Остановить кластер:
+
+```bash
+docker compose down
+```
+
+### Локально
+
+Для локального запуска Spark подключается к задаче `run` отдельной конфигурацией
+`sparkLocal`. Мастер `local[*]` выбирается автоматически, если его не задал `spark-submit`.
 
 ```bash
 ./gradlew run
 ```
 
-Результат записывается в `output/cost_per_efficiency/`, а топ-5 по годам выводится в консоль.
+В обоих случаях результат записывается в `output/cost_per_efficiency/`, а топ-5 по годам
+выводится в консоль.
 
 ## Структура проекта
 
 ```
+docker-compose.yml                     кластер Spark: spark-master + spark-worker
+build.gradle.kts                       сборка, shadowJar, задача run
+data/                                  исходные CSV
 src/main/java/org/example/
 ├── Main.java                          точка входа, последовательность шагов
 ├── model/
-│   ├── AppConfig.java                 record: пути к файлам, размер топа
+│   ├── AppConfig.java                 record: пути из аргументов, размер топа
 │   ├── PlayerCostEfficiency.java      record: строка итогового датасета
 │   └── TopPlayer.java                 record: место игрока в топе за год
 └── service/

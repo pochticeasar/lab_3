@@ -1,5 +1,6 @@
 package org.example;
 
+import org.apache.spark.SparkConf;
 import org.apache.spark.sql.Dataset;
 import org.apache.spark.sql.SparkSession;
 import org.example.model.AppConfig;
@@ -13,13 +14,16 @@ import org.example.service.TopPlayersReport;
 public class Main {
 
     public static void main(String[] args) {
-        AppConfig config = AppConfig.defaults();
+        AppConfig config = AppConfig.fromArgs(args);
 
-        SparkSession spark = SparkSession.builder()
+        SparkSession.Builder builder = SparkSession.builder()
                 .appName("NBA Cost per Efficiency")
-                .master("local[*]")
-                .config("spark.sql.shuffle.partitions", "8")
-                .getOrCreate();
+                .config("spark.sql.shuffle.partitions", "8");
+        if (!new SparkConf().contains("spark.master")) {
+            builder.master("local[*]");
+        }
+        SparkSession spark = builder.getOrCreate();
+        spark.sparkContext().setLogLevel("WARN");
 
         try {
             DataLoader loader = new DataLoader(spark, config);

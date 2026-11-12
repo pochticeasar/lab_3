@@ -7,12 +7,18 @@ public record AppConfig(
         String outputPath,
         int topN
 ) {
-    public static AppConfig defaults() {
+    private static final String DEFAULT_DATA_DIR = "data";
+    private static final String DEFAULT_OUTPUT_DIR = "output";
+    private static final int DEFAULT_TOP_N = 5;
+
+    public static AppConfig fromArgs(String[] args) {
+        String dataDir = args.length > 0 ? args[0] : DEFAULT_DATA_DIR;
+        String outputDir = args.length > 1 ? args[1] : DEFAULT_OUTPUT_DIR;
         return new AppConfig(
-                "data/players.csv",
-                "data/salaries_1985to2018.csv",
-                "data/Seasons_Stats.csv",
-                "output/cost_per_efficiency",
-                5);
+                dataDir + "/players.csv",
+                dataDir + "/salaries_1985to2018.csv",
+                dataDir + "/Seasons_Stats.csv",
+                outputDir + "/cost_per_efficiency",
+                DEFAULT_TOP_N);
     }
 }

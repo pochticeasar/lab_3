@@ -1,27 +1,34 @@
 plugins {
     id("java")
     id("application")
+    id("com.gradleup.shadow") version "9.6.1"
 }
 
 group = "org.example"
 version = "1.0-SNAPSHOT"
 
-java {
-    toolchain {
-        languageVersion = JavaLanguageVersion.of(21)
-    }
-}
-
 repositories {
     mavenCentral()
 }
 
+val sparkVersion = "4.2.0"
+
+val sparkLocal: Configuration by configurations.creating
+
 dependencies {
-    implementation("org.apache.spark:spark-sql_2.13:4.2.0")
+    compileOnly("org.apache.spark:spark-core_2.13:$sparkVersion")
+    compileOnly("org.apache.spark:spark-sql_2.13:$sparkVersion")
+    sparkLocal("org.apache.spark:spark-sql_2.13:$sparkVersion")
 
     testImplementation(platform("org.junit:junit-bom:6.0.0"))
     testImplementation("org.junit.jupiter:junit-jupiter")
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
+}
+
+java {
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(25)
+    }
 }
 
 application {
@@ -45,6 +52,17 @@ application {
 
 tasks.named<JavaExec>("run") {
     workingDir = rootDir
+    classpath += sparkLocal
+}
+
+tasks.shadowJar {
+    archiveBaseName = "nba-cost-efficiency"
+    archiveClassifier = ""
+    archiveVersion = ""
+}
+
+tasks.build {
+    dependsOn(tasks.shadowJar)
 }
 
 tasks.test {
